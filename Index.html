@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project-Aura App 🌟</title>
+    <style>
+        body { font-family: sans-serif; background: #0f0c1b; color: white; padding: 20px; text-align: center; }
+        .card { background: #1a162e; padding: 20px; border-radius: 12px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; box-sizing: border-box; border-radius: 6px; border: none; font-size: 16px; }
+        input { background: #251f3e; color: white; }
+        button { background: #8a2be2; color: white; font-weight: bold; cursor: pointer; }
+        .user-row { display: flex; justify-content: space-between; align-items: center; background: #251f3e; padding: 10px; margin: 5px 0; border-radius: 6px; }
+        .btn-aura { width: auto; padding: 5px 10px; margin: 0 2px; }
+        .plus { background: #00ff88; color: black; }
+        .minus { background: #ff4545; color: white; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>✨ Project-Aura ✨</h1>
+
+    <div id="loginScreen" class="card">
+        <h2>Chi sei?</h2>
+        <input type="text" id="username" placeholder="Inserisci il tuo Nome/Nickname">
+        <button onclick="login()">Entra nell'App</button>
+    </div>
+
+    <div id="mainScreen" class="card hidden">
+        <h2>Ciao, <span id="myUsername"></span>! 👋</h2>
+        <hr style="border-color: #332a54;">
+        
+        <h3>🏆 Classifica Aura Globale</h3>
+        <div id="usersList"></div>
+
+        <hr style="border-color: #332a54; margin-top: 20px;">
+        <button onclick="logout()" style="background: #443b6d;">Cambia Utente</button>
+    </div>
+
+<script>
+    // Database condiviso gratuito e automatico in cloud
+    const DB_URL = 'https://kvdb.io/MN88dt4pBz7q4yq8B4T4y7/aura_users'; 
+    let currentUser = "";
+    let allUsers = {};
+
+    // Controlla se eri già loggato
+    if(localStorage.getItem('aura_user')) {
+        currentUser = localStorage.getItem('aura_user');
+        startApp();
+    }
+
+    function login() {
+        const name = document.getElementById('username').value.trim();
+        if(!name) return alert("Inserisci un nome valido!");
+        currentUser = name;
+        localStorage.setItem('aura_user', name);
+        startApp();
+    }
+
+    function logout() {
+        localStorage.removeItem('aura_user');
+        location.reload();
+    }
+
+    async function startApp() {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('mainScreen').classList.remove('hidden');
+        document.getElementById('myUsername').innerText = currentUser;
+        
+        // Scarica i dati dal database e aggiorna la pagina ogni 3 secondi
+        await loadData();
+        setInterval(loadData, 3000);
+    }
+
+    async function loadData() {
+        try {
+            const res = await fetch(DB_URL);
+            if (res.ok) {
+                allUsers = await res.json();
+            }
+        } catch (e) { allUsers = {}; }
+
+        // Se tu non esisti ancora nel database, ti aggiunge con 0 punti
+        if (!allUsers[currentUser]) {
+            allUsers[currentUser] = 0;
+            saveData();
+        }
+
+        renderUsers();
+    }
+
+    function renderUsers() {
+        const listDiv = document.getElementById('usersList');
+        listDiv.innerHTML = '';
+
+        // Ordina gli utenti dal più "epic" (più Aura) al più "cringe"
+        const sorted = Object.entries(allUsers).sort((a,b) => b[1] - a[1]);
+
+        sorted.forEach(([name, aura]) => {
+            const div = document.createElement('div');
+            div.className = 'user-row';
+            div.innerHTML = `
+                <span><strong>${name}</strong>: ${aura} Aura</span>
+                <div>
+                    <button class="btn-aura plus" onclick="changeAura('${name}', 10)">+10</button>
+                    <button class="btn-aura minus" onclick="changeAura('${name}', -10)">-10</button>
+                </div>
+            `;
+            listDiv.appendChild(div);
+        });
+    }
+
+    function changeAura(name, amount) {
+        allUsers[name] = (allUsers[name] || 0) + amount;
+        renderUsers();
+        saveData();
+    }
+
+    async function saveData() {
+        await fetch(DB_URL, {
+            method: 'POST',
+            body: JSON.stringify(allUsers)
+        });
+    }
+</script>
+</body>
+</html>
